@@ -12,7 +12,10 @@ import { PrismaService } from 'src/prisma/prisma.service';
       storage: diskStorage({
         destination: join(process.cwd(), 'public', 'uploads'),
         filename: (req, file, cb) => {
-          const randomName = Array(32).fill(null).map(() => Math.round(Math.random() * 16).toString(16)).join('');
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
           cb(null, `${randomName}${extname(file.originalname)}`);
         },
       }),

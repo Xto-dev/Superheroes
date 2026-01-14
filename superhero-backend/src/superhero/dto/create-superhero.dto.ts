@@ -1,10 +1,6 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Transform, Type } from "class-transformer";
-import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
-
-class SuperPowers{
-  
-}
+import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateSuperheroDto {
   @ApiProperty()
@@ -28,7 +24,11 @@ export class CreateSuperheroDto {
   @IsString({ each: true })
   @Transform(({ value }) => {
     if (Array.isArray(value)) return value;
-    if (typeof value === 'string') return value.split(',').map(s => s.trim()).filter(Boolean);
+    if (typeof value === 'string')
+      return value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     return [];
   })
   superpowers: string[];
