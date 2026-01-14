@@ -25,6 +25,8 @@ services:
       NODE_ENV: development
     depends_on:
       - postgres-heroes
+    volumes:
+      - uploads:/usr/src/app/public/uploads
     command: sh -c "npm run wait-for-db && npm run db:push && npm run start:prod"
 
   frontend:
@@ -40,3 +42,4 @@ services:
 
 volumes:
   postgres_heroes_data:
+  uploads:
