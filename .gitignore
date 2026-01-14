@@ -84,3 +84,6 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# Prisma
+generated/
