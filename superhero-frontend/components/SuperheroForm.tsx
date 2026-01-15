@@ -1,4 +1,3 @@
-// src/components/SuperheroForm.tsx
 'use client';
 
 import { useState } from 'react';
