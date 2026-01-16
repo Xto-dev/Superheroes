@@ -27,3 +27,12 @@ model Superhero {
 
   @@map("superheroes")
 }
+
+model Image {
+  id String @id @default(uuid())
+  hash String @unique
+  filename String
+  url String
+  
+  createdAt DateTime @default(now())
+}
