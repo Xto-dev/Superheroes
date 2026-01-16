@@ -66,15 +66,20 @@ export class SuperheroService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<SuperheroResponseDto> {
     const hero = await this.superheroRepo.findById(id);
     if (!hero) throw new NotFoundException(`Superhero ${id} not found`);
 
     const images = hero.superheroImages?.map((si) => si.image.url) || [];
 
     return {
-      ...hero,
-      images,
+      id: hero.id,
+      nickname: hero.nickname,
+      realName: hero.realName,
+      originDescription: hero.originDescription,
+      superpowers: hero.superpowers,
+      catchPhrase: hero.catchPhrase,
+      images: images,
     };
   }
 

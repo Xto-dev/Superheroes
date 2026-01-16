@@ -39,5 +39,5 @@ export class CreateSuperheroDto {
   catchPhrase: string;
 
   @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' } })
-  images: Express.Multer.File[];
+  images?: Express.Multer.File[];
 }

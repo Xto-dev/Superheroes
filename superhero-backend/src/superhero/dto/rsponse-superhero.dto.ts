@@ -6,6 +6,4 @@ export class SuperheroResponseDto {
   superpowers: string[];
   catchPhrase: string;
   images: string[];
-  createdAt: Date;
-  updatedAt: Date;
 }
