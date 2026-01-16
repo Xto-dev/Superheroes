@@ -20,7 +20,8 @@ model Superhero {
   originDescription String @map("origin_description")
   superpowers       String[]
   catchPhrase       String @map("catch_phrase")
-  images            String[]
+
+  superheroImages   SuperheroImage[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -33,6 +34,22 @@ model Image {
   hash String @unique
   filename String
   url String
+
+  superheroImages SuperheroImage[]
   
   createdAt DateTime @default(now())
+}
+
+model SuperheroImage {
+  id          String    @id @default(uuid())
+  superheroId String
+  imageId     String
+  order       Int       @default(0)
+
+  superhero   Superhero @relation(fields: [superheroId], references: [id], onDelete: Cascade)
+  image       Image     @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@unique([superheroId, imageId])
+  @@index([superheroId])
+  @@index([imageId])
 }

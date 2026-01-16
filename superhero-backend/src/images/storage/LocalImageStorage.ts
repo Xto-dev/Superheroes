@@ -10,7 +10,7 @@ export class LocalImageStorageService extends ImageStorage {
 
   constructor() {
     super();
-    import('fs').then(fs => {
+    import('fs').then((fs) => {
       if (!fs.existsSync(this.uploadDir)) {
         fs.mkdirSync(this.uploadDir, { recursive: true });
       }
@@ -25,7 +25,7 @@ export class LocalImageStorageService extends ImageStorage {
   async delete(filename: string): Promise<void> {
     const filePath = join(this.uploadDir, filename);
     try {
-        console.log(filePath);
+      console.log(filePath);
       await unlink(filePath);
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;

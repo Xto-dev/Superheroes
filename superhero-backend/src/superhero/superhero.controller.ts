@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseInterceptors, UploadedFiles, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFiles,
+  Query,
+} from '@nestjs/common';
 import { SuperheroService } from './superhero.service';
 import { CreateSuperheroDto } from './dto/create-superhero.dto';
 import { UpdateSuperheroDto } from './dto/update-superhero.dto';
@@ -16,8 +28,7 @@ export class SuperheroController {
     @Body() createSuperheroDto: CreateSuperheroDto,
     @UploadedFiles() uploadedFiles?: { images?: Express.Multer.File[] }
   ) {
-    createSuperheroDto.images = uploadedFiles?.images?.map(f => `/uploads/${f.filename}`) || [];;
-    return await this.superheroService.create(createSuperheroDto);
+    return await this.superheroService.create(createSuperheroDto, uploadedFiles?.images);
   }
 
   @Get('/all')
@@ -27,8 +38,7 @@ export class SuperheroController {
 
   @Get()
   @ApiQuery({ name: 'page', required: true, description: 'The page number of the heroes' })
-  async paginate(@Query() query: Record<string, any>)
-  {
+  async paginate(@Query() query: Record<string, any>) {
     return await this.superheroService.paginate(query.page);
   }
 
@@ -45,8 +55,7 @@ export class SuperheroController {
     @Body() updateSuperheroDto: UpdateSuperheroDto,
     @UploadedFiles() uploadedFiles?: { images?: Express.Multer.File[] }
   ) {
-    updateSuperheroDto.images = uploadedFiles?.images?.map(f => `/uploads/${f.filename}`) || [];;
-    return await this.superheroService.update(id, updateSuperheroDto);
+    return await this.superheroService.update(id, updateSuperheroDto, uploadedFiles?.images);
   }
 
   @Delete(':id')

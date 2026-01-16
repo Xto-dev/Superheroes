@@ -5,7 +5,10 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class ImagesService {
-  constructor(private prisma: PrismaService, private storage: ImageStorage) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: ImageStorage
+  ) {}
 
   async create(images?: Express.Multer.File[]) {
     if (!images) return;
@@ -15,17 +18,17 @@ export class ImagesService {
         const hash = this.calculateFileHash(image.buffer);
         const existing = await this.prisma.image.findUnique({ where: { hash } });
         if (existing) return existing;
-        
+
         await this.storage.save(image.buffer, image.originalname);
         return await this.prisma.image.create({
           data: {
             hash: hash,
             filename: image.originalname,
-            url: this.storage.getPublicUrl(image.originalname)
-          }
-        })
+            url: this.storage.getPublicUrl(image.originalname),
+          },
+        });
       })
-    )
+    );
     return savedImages;
   }
 
@@ -37,7 +40,7 @@ export class ImagesService {
     const image = await this.prisma.image.findUnique({
       where: { id },
     });
-    
+
     if (!image) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
@@ -47,7 +50,7 @@ export class ImagesService {
 
   async remove(id: string) {
     const image = await this.findOne(id);
-    
+
     await this.storage.delete(image.filename);
     await this.prisma.image.delete({
       where: { id },
@@ -55,6 +58,6 @@ export class ImagesService {
   }
 
   private calculateFileHash(buffer: Buffer): string {
-  return crypto.createHash('sha256').update(buffer).digest('hex');
-}
+    return crypto.createHash('sha256').update(buffer).digest('hex');
+  }
 }

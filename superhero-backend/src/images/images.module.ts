@@ -10,7 +10,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
   providers: [
     ImagesService,
     PrismaService,
-     {
+    {
       provide: ImageStorage,
       useClass: LocalImageStorageService,
     },
