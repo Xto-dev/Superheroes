@@ -1,70 +1,51 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateSuperheroDto } from './dto/create-superhero.dto';
 import { UpdateSuperheroDto } from './dto/update-superhero.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { PaginatedSuperheroDto } from './dto/paginated-superhero.dto';
 import { ImagesService } from 'src/images/images.service';
-import { Superhero } from '@prisma/client';
+import { SuperheroRepository } from './superhero.repository';
+import { SuperheroResponseDto } from './dto/rsponse-superhero.dto';
 
 @Injectable()
 export class SuperheroService {
   constructor(
-    private prisma: PrismaService,
+    private superheroRepo: SuperheroRepository,
     private imagesService: ImagesService
   ) {}
 
-  async create(createSuperheroDto: CreateSuperheroDto, files?: Express.Multer.File[]) {
-    const superhero = await this.prisma.superhero.create({
-      data: {
-        nickname: createSuperheroDto.nickname,
-        realName: createSuperheroDto.realName,
-        originDescription: createSuperheroDto.originDescription,
-        superpowers: createSuperheroDto.superpowers,
-        catchPhrase: createSuperheroDto.catchPhrase,
-      },
+  async create(dto: CreateSuperheroDto, files?: Express.Multer.File[]): Promise<SuperheroResponseDto> {
+    const superhero = await this.superheroRepo.create({
+      nickname: dto.nickname,
+      realName: dto.realName,
+      originDescription: dto.originDescription,
+      superpowers: dto.superpowers,
+      catchPhrase: dto.catchPhrase,
     });
 
-    if (files && files.length > 0) {
+    if (files?.length) {
       const savedImages = await this.imagesService.create(files);
-
-      await this.prisma.$transaction(
-        savedImages!.map((img, index) =>
-          this.prisma.superheroImage.create({
-            data: {
-              superheroId: superhero.id,
-              imageId: img.id,
-              order: index,
-            },
-          })
-        )
+      await this.superheroRepo.createImageRelations(
+        savedImages!.map((img, index) => ({
+          superhero: { connect: { id: superhero.id } },
+          image: { connect: { id: img.id } },
+          order: index,
+        }))
       );
     }
 
-    return await this.findOne(superhero.id);
+    return this.findOne(superhero.id);
   }
 
-  async findAll(): Promise<Superhero[]> {
-    return await this.prisma.superhero.findMany();
+  async findAll() {
+    return this.superheroRepo.findAll();
   }
 
-  async paginate(page: number, limit: number = 5): Promise<PaginatedSuperheroDto> {
+  async paginate(page: number, limit = 5): Promise<PaginatedSuperheroDto> {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.prisma.superhero.findMany({
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          nickname: true,
-          superheroImages: {
-            where: { order: 0 },
-            select: { image: { select: { url: true } } },
-            take: 1,
-          },
-        },
-      }),
-      this.prisma.superhero.count(),
+      this.superheroRepo.findPaginated(skip, limit),
+      this.superheroRepo.count(),
     ]);
 
     if (page > 1 && data.length === 0) {
@@ -86,65 +67,48 @@ export class SuperheroService {
   }
 
   async findOne(id: string) {
-    const hero = await this.prisma.superhero.findUnique({
-      where: { id },
-      include: {
-        superheroImages: {
-          orderBy: { order: 'asc' },
-          include: { image: true },
-        },
-      },
-    });
-
+    const hero = await this.superheroRepo.findById(id);
     if (!hero) throw new NotFoundException(`Superhero ${id} not found`);
+
+    const images = hero.superheroImages?.map((si) => si.image.url) || [];
 
     return {
       ...hero,
-      images: hero.superheroImages.map((si) => si.image.url),
+      images,
     };
   }
 
-  async update(id: string, dto: UpdateSuperheroDto, files?: Express.Multer.File[]) {
+  async update(id: string, dto: UpdateSuperheroDto, files?: Express.Multer.File[]): Promise<SuperheroResponseDto> {
     await this.findOne(id);
 
-    const updatedHero = await this.prisma.superhero.update({
-      where: { id },
-      data: {
-        ...(dto.nickname !== undefined && { nickname: dto.nickname }),
-        ...(dto.realName !== undefined && { realName: dto.realName }),
-        ...(dto.originDescription !== undefined && { originDescription: dto.originDescription }),
-        ...(dto.superpowers !== undefined && { superpowers: dto.superpowers }),
-        ...(dto.catchPhrase !== undefined && { catchPhrase: dto.catchPhrase }),
-      },
+    const updatedHero = await this.superheroRepo.updateById(id, {
+      ...(dto.nickname !== undefined && { nickname: dto.nickname }),
+      ...(dto.realName !== undefined && { realName: dto.realName }),
+      ...(dto.originDescription !== undefined && { originDescription: dto.originDescription }),
+      ...(dto.superpowers !== undefined && { superpowers: dto.superpowers }),
+      ...(dto.catchPhrase !== undefined && { catchPhrase: dto.catchPhrase }),
     });
 
     if (files) {
-      await this.prisma.superheroImage.deleteMany({ where: { superheroId: id } });
+      await this.superheroRepo.deleteAllImageRelations(id);
 
       if (files.length > 0) {
         const savedImages = await this.imagesService.create(files);
-
-        await this.prisma.$transaction(
-          savedImages!.map((img, index) =>
-            this.prisma.superheroImage.create({
-              data: {
-                superheroId: id,
-                imageId: img.id,
-                order: index,
-              },
-            })
-          )
+        await this.superheroRepo.createImageRelations(
+          savedImages!.map((img, index) => ({
+            superhero: { connect: { id } },
+            image: { connect: { id: img.id } },
+            order: index,
+          }))
         );
       }
     }
-    return await this.findOne(id);
+
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     await this.findOne(id);
-
-    await this.prisma.superhero.delete({
-      where: { id },
-    });
+    await this.superheroRepo.deleteById(id);
   }
 }
