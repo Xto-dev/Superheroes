@@ -23,7 +23,7 @@ export default async function HeroDetail({ params }: { params: { id: string } })
             <img
                 key={i}
                 alt = ""
-                src={process.env.NEXT_PUBLIC_API_URL + url}
+                src={url}
                 className={i <= imageStyles.length ? imageStyles[i] : imageStyles[imageStyles.length - 1]}
             />
            ))} 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 export default function SuperheroCard({ hero }: { hero: SuperheroListItem }) {
-  const [imgSrc, setImgSrc] = useState(`${process.env.NEXT_PUBLIC_API_URL}${hero.image}`  || '/placeholder.jpg');
+  const [imgSrc, setImgSrc] = useState(hero.image  || '/placeholder.jpg');
   
   const handleError = () => {
     setImgSrc('/placeholder.svg');
