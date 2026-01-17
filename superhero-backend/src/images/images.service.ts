@@ -48,6 +48,18 @@ export class ImagesService {
     return image;
   }
 
+  async findOneByUrl(url: string) {
+    const image = await this.prisma.image.findFirst({
+      where: { url },
+    });
+
+    if (!image) {
+      throw new NotFoundException(`Image with url: ${url} - not found`);
+    }
+
+    return image;
+  }
+
   async remove(id: string) {
     const image = await this.findOne(id);
 

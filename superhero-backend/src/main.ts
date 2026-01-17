@@ -19,7 +19,7 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 
-  app.useStaticAssets(join(__dirname, '..', '..', 'public'));
+  app.useStaticAssets(join(__dirname, '..', 'public'));
 
   await app.listen(process.env.PORT ?? 3000);
 }

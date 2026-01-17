@@ -21,6 +21,8 @@ export default function SuperheroForm({
     catchPhrase: initialData?.catchPhrase || '',
   });
   const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [existedFiles, setExistedFiles] = useState<string[]>([]);
+  const [orderFiles, setOrderFiles] = useState<string[]>([]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -34,9 +36,17 @@ export default function SuperheroForm({
     Object.entries(formData).forEach(([key, value]) => {
       data.append(key, value);
     });
+    
+    existedFiles.forEach(url => {
+      data.append('existedImages', url);
+    });
 
     newFiles.forEach(file => {
       data.append('images', file);
+    });
+
+    orderFiles.forEach(name => {
+      data.append('imageOrder', name);
     });
 
     onSubmit(data);
@@ -156,7 +166,9 @@ export default function SuperheroForm({
         <h2 className="text-lg font-medium text-white mb-4">Hero Images</h2>
         <ImageUpload
           existingImages={initialData?.images || []}
-          onFilesChange={setNewFiles}
+          setNewFiles={setNewFiles}
+          setExistedFiles={setExistedFiles}
+          setOrderFiles={setOrderFiles}
         />
       </div>
 

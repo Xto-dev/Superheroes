@@ -5,6 +5,7 @@ import { PaginatedSuperheroDto } from './dto/paginated-superhero.dto';
 import { ImagesService } from 'src/images/images.service';
 import { SuperheroRepository } from './superhero.repository';
 import { SuperheroResponseDto } from './dto/rsponse-superhero.dto';
+import { Image } from '@prisma/client';
 
 @Injectable()
 export class SuperheroService {
@@ -13,7 +14,10 @@ export class SuperheroService {
     private imagesService: ImagesService
   ) {}
 
-  async create(dto: CreateSuperheroDto, files?: Express.Multer.File[]): Promise<SuperheroResponseDto> {
+  async create(
+    dto: CreateSuperheroDto,
+    files?: Express.Multer.File[]
+  ): Promise<SuperheroResponseDto> {
     const superhero = await this.superheroRepo.create({
       nickname: dto.nickname,
       realName: dto.realName,
@@ -83,7 +87,11 @@ export class SuperheroService {
     };
   }
 
-  async update(id: string, dto: UpdateSuperheroDto, files?: Express.Multer.File[]): Promise<SuperheroResponseDto> {
+  async update(
+    id: string,
+    dto: UpdateSuperheroDto,
+    files?: Express.Multer.File[]
+  ): Promise<SuperheroResponseDto> {
     await this.findOne(id);
 
     const updatedHero = await this.superheroRepo.updateById(id, {
@@ -94,20 +102,30 @@ export class SuperheroService {
       ...(dto.catchPhrase !== undefined && { catchPhrase: dto.catchPhrase }),
     });
 
-    if (files) {
-      await this.superheroRepo.deleteAllImageRelations(id);
+    await this.superheroRepo.deleteAllImageRelations(id);
+    const existedImages = await Promise.all(
+      (dto.existedImages ?? []).map(async (url) => {
+        return await this.imagesService.findOneByUrl(url);
+      })
+    );
+    const savedImages = await this.imagesService.create(files);
 
-      if (files.length > 0) {
-        const savedImages = await this.imagesService.create(files);
-        await this.superheroRepo.createImageRelations(
-          savedImages!.map((img, index) => ({
-            superhero: { connect: { id } },
-            image: { connect: { id: img.id } },
-            order: index,
-          }))
+    const orderedImages = (dto.imageOrder ?? [])
+      .map((image) => {
+        return (
+          existedImages.find((eImage) => eImage.url === image) ||
+          savedImages?.find((sImage) => sImage.filename === image)
         );
-      }
-    }
+      })
+      .filter(Boolean);
+
+    await this.superheroRepo.createImageRelations(
+      orderedImages.map((img, index) => ({
+        superhero: { connect: { id } },
+        image: { connect: { id: img!.id } },
+        order: index,
+      }))
+    );
 
     return this.findOne(id);
   }

@@ -50,7 +50,7 @@ describe('SuperheroService', () => {
         createMockSuperhero({
           id: `${i + 1}`,
           nickname: `Hero${i + 1}`,
-        }),
+        })
       );
 
   // ==================== Module Setup ====================
@@ -69,6 +69,7 @@ describe('SuperheroService', () => {
 
     mockImagesService = {
       create: jest.fn().mockResolvedValue([]),
+      findOneByUrl: jest.fn(),
     } as any as jest.Mocked<ImagesService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -214,9 +215,7 @@ describe('SuperheroService', () => {
     it('should throw BadRequestException for out of range page', async () => {
       mockRepository.findPaginated.mockResolvedValue([]);
 
-      await expect(service.paginate(2, ITEMS_PER_PAGE)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.paginate(2, ITEMS_PER_PAGE)).rejects.toThrow(BadRequestException);
     });
 
     it('should calculate correct total pages', async () => {
@@ -243,10 +242,7 @@ describe('SuperheroService', () => {
       await service.paginate(2, ITEMS_PER_PAGE);
 
       const expectedSkip = (2 - 1) * ITEMS_PER_PAGE;
-      expect(mockRepository.findPaginated).toHaveBeenCalledWith(
-        expectedSkip,
-        ITEMS_PER_PAGE,
-      );
+      expect(mockRepository.findPaginated).toHaveBeenCalledWith(expectedSkip, ITEMS_PER_PAGE);
     });
   });
 
@@ -308,71 +304,124 @@ describe('SuperheroService', () => {
     beforeEach(() => {
       mockRepository.findById.mockResolvedValue(createMockSuperhero());
       mockRepository.updateById.mockResolvedValue(createMockSuperhero());
+      mockImagesService.create.mockResolvedValue([]);
+      mockImagesService.findOneByUrl.mockRejectedValue(new NotFoundException('Image not found'));
+      jest.clearAllMocks();
     });
 
-    it('should update superhero properties only', async () => {
-      const updateDto: UpdateSuperheroDto = {
-        nickname: 'Iron Man Mark II',
-      };
+    it('should update only provided superhero properties and reset images when imageOrder is not provided', async () => {
+      const updateDto: UpdateSuperheroDto = { nickname: 'Iron Man Mark II' };
 
       await service.update(VALID_ID, updateDto);
 
       expect(mockRepository.findById).toHaveBeenCalledWith(VALID_ID);
-      expect(mockRepository.updateById).toHaveBeenCalledWith(VALID_ID, updateDto);
+      expect(mockRepository.updateById).toHaveBeenCalledWith(VALID_ID, {
+        nickname: 'Iron Man Mark II',
+      });
+      expect(mockRepository.deleteAllImageRelations).toHaveBeenCalledWith(VALID_ID);
+      expect(mockImagesService.create).toHaveBeenCalledWith(undefined);
+      expect(mockRepository.createImageRelations).toHaveBeenCalledWith([]);
     });
 
-    it('should replace images when files are provided', async () => {
-      const updateDto: UpdateSuperheroDto = { nickname: 'Updated' };
-      const newFiles = [
-        { originalname: 'new1.jpg' },
-        { originalname: 'new2.jpg' },
-      ] as Express.Multer.File[];
-      const mockImage = createMockImage();
+    it('should handle new images and existing images via imageOrder', async () => {
+      const updateDto: UpdateSuperheroDto = {
+        imageOrder: ['new1.jpg', 'http://example.com/existing.jpg'],
+        existedImages: ['http://example.com/existing.jpg'],
+      };
+      const newFiles = [{ originalname: 'new1.jpg' }] as Express.Multer.File[];
 
-      mockImagesService.create.mockResolvedValue([mockImage]);
+      const existingImage = createMockImage({ url: 'http://example.com/existing.jpg', id: 'img1' });
+      const newImage = createMockImage({
+        filename: 'new1.jpg',
+        id: 'img2',
+        url: 'http://localhost/new1.jpg',
+      });
+
+      mockImagesService.findOneByUrl.mockResolvedValue(existingImage);
+      mockImagesService.create.mockResolvedValue([newImage]);
 
       await service.update(VALID_ID, updateDto, newFiles);
 
       expect(mockRepository.deleteAllImageRelations).toHaveBeenCalledWith(VALID_ID);
+      expect(mockImagesService.findOneByUrl).toHaveBeenCalledWith(
+        'http://example.com/existing.jpg'
+      );
       expect(mockImagesService.create).toHaveBeenCalledWith(newFiles);
-      expect(mockRepository.createImageRelations).toHaveBeenCalled();
+
+      expect(mockRepository.createImageRelations).toHaveBeenCalledWith([
+        {
+          superhero: { connect: { id: VALID_ID } },
+          image: { connect: { id: newImage.id } },
+          order: 0,
+        },
+        {
+          superhero: { connect: { id: VALID_ID } },
+          image: { connect: { id: existingImage.id } },
+          order: 1,
+        },
+      ]);
     });
 
-    it('should clear all images when empty array is provided', async () => {
-      const updateDto: UpdateSuperheroDto = {};
-      const emptyFiles: Express.Multer.File[] = [];
-
-      await service.update(VALID_ID, updateDto, emptyFiles);
-
-      expect(mockRepository.deleteAllImageRelations).toHaveBeenCalledWith(VALID_ID);
-      expect(mockImagesService.create).not.toHaveBeenCalled();
-    });
-
-    it('should not touch images when files parameter is not provided', async () => {
-      const updateDto: UpdateSuperheroDto = { nickname: 'New Name' };
+    it('should clear all images when imageOrder is an empty array', async () => {
+      const updateDto: UpdateSuperheroDto = { imageOrder: [] };
 
       await service.update(VALID_ID, updateDto);
 
-      expect(mockRepository.deleteAllImageRelations).not.toHaveBeenCalled();
-      expect(mockImagesService.create).not.toHaveBeenCalled();
+      expect(mockRepository.deleteAllImageRelations).toHaveBeenCalledWith(VALID_ID);
+      expect(mockImagesService.create).toHaveBeenCalledWith(undefined);
+      expect(mockRepository.createImageRelations).toHaveBeenCalledWith([]);
+    });
+
+    it('should use only existed images when no new files are provided', async () => {
+      const updateDto: UpdateSuperheroDto = {
+        imageOrder: ['http://example.com/existing.jpg'],
+        existedImages: ['http://example.com/existing.jpg'],
+      };
+
+      const existingImage = createMockImage({ url: 'http://example.com/existing.jpg', id: 'img1' });
+      mockImagesService.findOneByUrl.mockResolvedValue(existingImage);
+
+      await service.update(VALID_ID, updateDto);
+
+      expect(mockImagesService.create).toHaveBeenCalledWith(undefined);
+      expect(mockRepository.createImageRelations).toHaveBeenCalledWith([
+        {
+          superhero: { connect: { id: VALID_ID } },
+          image: { connect: { id: existingImage.id } },
+          order: 0,
+        },
+      ]);
     });
 
     it('should throw NotFoundException if superhero does not exist', async () => {
       mockRepository.findById.mockResolvedValue(null);
       const updateDto: UpdateSuperheroDto = { nickname: 'New Name' };
 
-      await expect(service.update(INVALID_ID, updateDto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.update(INVALID_ID, updateDto)).rejects.toThrow(NotFoundException);
       expect(mockRepository.updateById).not.toHaveBeenCalled();
+      expect(mockRepository.deleteAllImageRelations).not.toHaveBeenCalled();
+      expect(mockImagesService.create).not.toHaveBeenCalled();
     });
 
-    it('should allow empty update dto', async () => {
+    it('should allow completely empty update DTO (reset images to empty)', async () => {
       const emptyDto: UpdateSuperheroDto = {};
 
       await service.update(VALID_ID, emptyDto);
 
-      expect(mockRepository.updateById).toHaveBeenCalledWith(VALID_ID, emptyDto);
+      expect(mockRepository.updateById).toHaveBeenCalledWith(VALID_ID, {});
+      expect(mockRepository.deleteAllImageRelations).toHaveBeenCalledWith(VALID_ID);
+      expect(mockRepository.createImageRelations).toHaveBeenCalledWith([]);
+    });
+
+    it('should treat missing imageOrder as empty array (no images)', async () => {
+      const updateDto: UpdateSuperheroDto = {
+        nickname: 'Updated Hero',
+        // imageOrder не передан
+      };
+
+      await service.update(VALID_ID, updateDto);
+
+      expect(mockRepository.createImageRelations).toHaveBeenCalledWith([]);
     });
   });
 
