@@ -2,6 +2,12 @@
 
 A full-stack web application for managing a superhero database with CRUD operations, image management, and pagination.
 
+## Screenshots
+
+![Example 1](https://raw.githubusercontent.com/Xto-dev/Superheroes/main/Example1.png)
+
+![Example 2](https://raw.githubusercontent.com/Xto-dev/Superheroes/main/Example2.png)
+
 ## Overview
 
 This project allows you to create, read, update, and delete superhero records with their associated information and images. The application provides a user-friendly interface for managing superhero data, including their real names, origin descriptions, superpowers, and memorable catch phrases.
